@@ -1,47 +1,11 @@
 module Tables
 
-using Requires, LinearAlgebra
-
-using TableTraits
-
-import IteratorInterfaceExtensions
+using LinearAlgebra
+using DataAPI, IteratorInterfaceExtensions, TableTraits
 
 export rowtable, columntable
 
 function __init__()
-    @require DataValues="e7dc6d0d-1eca-5fa6-8ad6-5aecde8b7ea5" begin
-        using .DataValues
-
-        # DataValue overloads for iteratorwrapper.jl definitions
-        nondatavaluetype(::Type{DataValue{T}}) where {T} = Union{T, Missing}
-        unwrap(x::DataValue) = isna(x) ? missing : DataValues.unsafe_get(x)
-        datavaluetype(::Type{T}) where {T <: DataValue} = T
-        datavaluetype(::Type{Union{T, Missing}}) where {T} = DataValue{T}
-        datavaluetype(::Type{Missing}) = DataValue{Union{}}
-
-        scalarconvert(::Type{T}, ::Missing) where {T <: DataValue} = T()
-
-        @require CategoricalArrays="324d7699-5711-5eae-9e2f-1d82baa6b597" begin
-            using .CategoricalArrays
-            scalarconvert(::Type{DataValue{T}}, x::T) where {T <: CategoricalArrays.CatValue} = DataValue(x)
-        end
-    end
-    @require CategoricalArrays="324d7699-5711-5eae-9e2f-1d82baa6b597" begin
-        using .CategoricalArrays
-        allocatecolumn(::Type{CategoricalString{R}}, rows) where {R} = CategoricalArray{String, 1, R}(undef, rows)
-        allocatecolumn(::Type{Union{CategoricalString{R}, Missing}}, rows) where {R} =
-            CategoricalArray{Union{String, Missing}, 1, R}(undef, rows)
-        allocatecolumn(::Type{CategoricalValue{T, R}}, rows) where {T, R} =
-            CategoricalArray{T, 1, R}(undef, rows)
-        allocatecolumn(::Type{Union{Missing, CategoricalValue{T, R}}}, rows) where {T, R} =
-            CategoricalArray{Union{Missing, T}, 1, R}(undef, rows)
-    end
-    @require WeakRefStrings="ea10d353-3f73-51f8-a26c-33c1cb351aa5" begin
-        using .WeakRefStrings
-        allocatecolumn(::Type{WeakRefString{T}}, rows) where {T} = StringVector(undef, rows)
-        allocatecolumn(::Type{Union{Missing, WeakRefString{T}}}, rows) where {T} =
-            StringVector{Union{Missing, String}}(undef, rows)
-    end
 end
 
 "Abstract row type with a simple required interface: row values are accessible via `getproperty(row, field)`; for example, a NamedTuple like `nt = (a=1, b=2, c=3)` can access its value for `a` like `nt.a` which turns into a call to the function `getproperty(nt, :a)`"

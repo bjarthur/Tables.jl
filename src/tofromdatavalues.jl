@@ -1,23 +1,20 @@
 # utilities for converting Row iterators to and from DataValue-based NamedTuple iterators
 # the DataValue-specific definitions are in the Tables.jl __init__ DataValues @require block
-nondatavaluetype(::Type{T}) where {T} = T
-nondatavaluetype(::Type{Union{}}) = Union{}
-datavaluetype(::Type{T}) where {T} = T
-datavaluetype(::Type{Union{}}) = Union{}
+DataAPI.nondatavaluetype(::Type{T}) where {T} = T
+DataAPI.nondatavaluetype(::Type{Union{}}) = Union{}
+DataAPI.datavaluetype(::Type{T}) where {T} = T
+DataAPI.datavaluetype(::Type{Union{}}) = Union{}
+DataAPI.unwrap(x) = x
 
 Base.@pure function nondatavaluenamedtuple(::Type{NT}) where {NT <: NamedTuple{names}} where {names}
-    TT = Tuple{Any[ nondatavaluetype(fieldtype(NT, i)) for i = 1:fieldcount(NT) ]...}
+    TT = Tuple{Any[ DataAPI.nondatavaluetype(fieldtype(NT, i)) for i = 1:fieldcount(NT) ]...}
     return NamedTuple{names, TT}
 end
 
 Base.@pure function datavaluenamedtuple(::Tables.Schema{names, types}) where {names, types}
-    TT = Tuple{Any[ datavaluetype(fieldtype(types, i)) for i = 1:fieldcount(types) ]...}
+    TT = Tuple{Any[ DataAPI.datavaluetype(fieldtype(types, i)) for i = 1:fieldcount(types) ]...}
     return NamedTuple{names, TT}
 end
-
-unwrap(x) = x
-scalarconvert(T, x) = convert(T, x)
-scalarconvert(::Type{T}, x::T) where {T} = x
 
 # IteratorWrapper takes an input Row iterators, it will unwrap any DataValue elements as plain Union{T, Missing}
 struct IteratorWrapper{S}
@@ -62,8 +59,8 @@ struct IteratorRow{T}
     row::T
 end
 
-Base.getproperty(d::IteratorRow, ::Type{T}, col::Int, nm::Symbol) where {T} = unwrap(getproperty(getfield(d, 1), T, col, nm))
-Base.getproperty(d::IteratorRow, nm::Symbol) = unwrap(getproperty(getfield(d, 1), nm))
+Base.getproperty(d::IteratorRow, ::Type{T}, col::Int, nm::Symbol) where {T} = DataAPI.unwrap(getproperty(getfield(d, 1), T, col, nm))
+Base.getproperty(d::IteratorRow, nm::Symbol) = DataAPI.unwrap(getproperty(getfield(d, 1), nm))
 Base.propertynames(d::IteratorRow) = propertynames(getfield(d, 1))
 
 # DataValueRowIterator wraps a Row iterator and will wrap `Union{T, Missing}` typed fields in DataValues
@@ -74,8 +71,8 @@ end
 function datavaluerows(x)
     r = Tables.rows(x)
     s = Tables.schema(r)
-    s === nothing && error("Schemaless sources cannot be passed to datavaluerows.")
-        return DataValueRowIterator{datavaluenamedtuple(s), typeof(r)}(r)
+    s === nothing && error("Schemaless sources cannot be passed to datavaluerows")
+    return DataValueRowIterator{datavaluenamedtuple(s), typeof(r)}(r)
 end
 
 Base.eltype(rows::DataValueRowIterator{NT, S}) where {NT, S} = NT
@@ -85,7 +82,7 @@ Base.size(rows::DataValueRowIterator) = size(rows.x)
 
 function Base.iterate(rows::DataValueRowIterator{NT, S}, st=()) where {NT <: NamedTuple{names}, S} where {names}
     if @generated
-        vals = Tuple(:(scalarconvert($(fieldtype(NT, i)), getproperty(row, $(nondatavaluetype(fieldtype(NT, i))), $i, $(Meta.QuoteNode(names[i]))))) for i = 1:fieldcount(NT))
+        vals = Tuple(:(convert($(fieldtype(NT, i)), getproperty(row, $(DataAPI.nondatavaluetype(fieldtype(NT, i))), $i, $(Meta.QuoteNode(names[i]))))) for i = 1:fieldcount(NT))
         q = quote
             x = iterate(rows.x, st...)
             x === nothing && return nothing
@@ -98,6 +95,6 @@ function Base.iterate(rows::DataValueRowIterator{NT, S}, st=()) where {NT <: Nam
         x = iterate(rows.x, st...)
         x === nothing && return nothing
         row, st = x
-        return NT(Tuple(scalarconvert(fieldtype(NT, i), getproperty(row, nondatavaluetype(fieldtype(NT, i)), i, names[i])) for i = 1:fieldcount(NT))), (st,)
+        return NT(Tuple(convert(fieldtype(NT, i), getproperty(row, DataAPI.nondatavaluetype(fieldtype(NT, i)), i, names[i])) for i = 1:fieldcount(NT))), (st,)
     end
 end

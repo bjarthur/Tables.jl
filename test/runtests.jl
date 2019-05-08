@@ -1,4 +1,4 @@
-using Test, Tables, TableTraits, DataValues, QueryOperators, IteratorInterfaceExtensions
+using Test, Tables, TableTraits, DataValues, Query, IteratorInterfaceExtensions
 
 @testset "utils.jl" begin
 
@@ -409,23 +409,25 @@ end
     rt2 = collect(dv)
     @test rt2[1] == (a = 1, b = DataValue{Float64}(4.0), c = "7")
 
-    ei = Tables.nondatavaluerows(QueryOperators.EnumerableIterable{eltype(dv), typeof(dv)}(dv))
+    ei = Tables.nondatavaluerows(Query.QueryOperators.EnumerableIterable{eltype(dv), typeof(dv)}(dv))
     nt = ei |> columntable
     @test isequal(rt, nt)
     rt3 = ei |> rowtable
     @test isequal(rt |> rowtable, rt3)
 
     # rt = [(a=1, b=4.0, c="7"), (a=2, b=5.0, c="8"), (a=3, b=6.0, c="9")]
-    mt = Tables.nondatavaluerows(ei.x |> y->QueryOperators.map(y, x->(a=x.b, c=x.c), Expr(:block)))
+    mt = Tables.nondatavaluerows(ei.x |> y->Query.QueryOperators.map(y, x->(a=x.b, c=x.c), Expr(:block)))
     @inferred (mt |> columntable)
     @inferred (mt |> rowtable)
 
     # uninferrable case
-    mt = Tables.nondatavaluerows(ei.x |> y->QueryOperators.map(y, x->(a=x.a, c=x.c), Expr(:block)))
+    mt = Tables.nondatavaluerows(ei.x |> y->Query.QueryOperators.map(y, x->(a=x.a, c=x.c), Expr(:block)))
     @test (mt |> columntable) == (a = Real[1, 2.0, 3], c = ["7", "8", "9"])
     @test length(mt |> rowtable) == 3
 
     rt = (a = Missing[missing, missing], b=[1,2])
     dv = Tables.datavaluerows(rt)
     @test eltype(dv) == NamedTuple{(:a, :b), Tuple{DataValue{Union{}}, Int}}
+
+    ndv = Tables.nondatavaluerows(dv)
 end
