@@ -1,11 +1,3 @@
-# utilities for converting Row iterators to and from DataValue-based NamedTuple iterators
-# the DataValue-specific definitions are in the Tables.jl __init__ DataValues @require block
-DataAPI.nondatavaluetype(::Type{T}) where {T} = T
-DataAPI.nondatavaluetype(::Type{Union{}}) = Union{}
-DataAPI.datavaluetype(::Type{T}) where {T} = T
-DataAPI.datavaluetype(::Type{Union{}}) = Union{}
-DataAPI.unwrap(x) = x
-
 Base.@pure function nondatavaluenamedtuple(::Type{NT}) where {NT <: NamedTuple{names}} where {names}
     TT = Tuple{Any[ DataAPI.nondatavaluetype(fieldtype(NT, i)) for i = 1:fieldcount(NT) ]...}
     return NamedTuple{names, TT}
